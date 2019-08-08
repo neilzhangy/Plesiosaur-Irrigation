@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/robfig/cron"
 	"github.com/stianeikeland/go-rpio"
 	//"github.com/stianeikeland/go-rpio"
 )
@@ -52,11 +53,46 @@ import (
 //
 //
 
+// DelayForSeconds ,delay for several seconds
+func DelayForSeconds(pin rpio.Pin, delay int) {
+	fmt.Println("Turn on after", delay, "seconds.")
+
+	end := time.Now().Add(time.Second * time.Duration(delay))
+	for {
+		if time.Now().After(end) {
+			fmt.Println("Delay done.")
+			break
+		}
+	}
+}
+
+// TurnOnForSeconds ,Turn on for several seconds
+func TurnOnForSeconds(pin rpio.Pin, lasts int) {
+	if lasts == 0 {
+		return
+	}
+
+	fmt.Println("Turn on.")
+	pin.High()
+	defer pin.Low()
+
+	endTime := time.Now().Add(time.Second * time.Duration(lasts))
+	for {
+		if time.Now().After(endTime) {
+			fmt.Println("Last for", lasts, "seconds done.")
+			break
+		}
+	}
+
+	fmt.Println("Turn off.")
+}
+
 func main() {
 	rawPin := flag.Uint("pin", 10, "Raw pinouts, not the ports as they are mapped")
-	turnOn := flag.Bool("turnon", true, "Whether turn on target GPIO")
 	timeDelay := flag.Int("delay", 0, "Delay time in seconds")
-	lastFor := flag.Int("lastfor", 0, "Last for time in seconds")
+	timeLast := flag.Int("lastfor", 0, "Last for time in seconds")
+	useCron := flag.Bool("cron", false, "Whether use cron job")
+	startHour := flag.Int("hour", 21, "Start hour from 0 to 23")
 
 	flag.Parse()
 
@@ -72,53 +108,18 @@ func main() {
 	pin.Output()
 	fmt.Println("Setting up output done.")
 
-	if *turnOn {
-		fmt.Println("Turn On after", *timeDelay, "seconds.")
-	} else {
-		fmt.Println("Turn off after", *timeDelay, "seconds.")
-	}
-
-	end := time.Now().Add(time.Second * time.Duration(*timeDelay))
-	for {
-		if time.Now().After(end) {
-			fmt.Println("Delay done.")
-			break
+	if *useCron {
+		c := cron.New()
+		cronStr := fmt.Sprintf("0 %d * * * *", *startHour)
+		c.AddFunc(cronStr, func() { TurnOnForSeconds(pin, *timeLast) })
+		c.Start()
+		for {
+			time.Sleep(time.Second)
 		}
-	}
-
-	end = time.Now().Add(time.Second * time.Duration(*lastFor))
-	if 0 == *lastFor {
-		end = time.Now().Add(time.Hour * time.Duration(1000000))
-	}
-	if *turnOn {
-		fmt.Println("Turn on.")
-		pin.High()
 	} else {
-		fmt.Println("Turn off.")
-		pin.Low()
+		DelayForSeconds(pin, *timeDelay)
+		TurnOnForSeconds(pin, *timeLast)
 	}
-	for {
-		if time.Now().After(end) {
-			fmt.Println("Last for", *lastFor, "seconds done.")
-			break
-		}
-	}
-	if *turnOn {
-		fmt.Println("Turn off.")
-		pin.Low()
-	} else {
-		fmt.Println("Turn on.")
-		pin.High()
-	}
-
-	// c := cron.New()
-	// c.AddFunc("15 * * * * *", func() { PIN2.Toggle() })
-	// c.Start()
-
-	// for {
-	// 	PIN1.Toggle()
-	// 	time.Sleep(time.Second / 2)
-	// }
 
 	os.Exit(0)
 }
