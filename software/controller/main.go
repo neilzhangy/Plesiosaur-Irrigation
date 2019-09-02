@@ -68,6 +68,7 @@ func DelayForSeconds(pin rpio.Pin, delay int) {
 
 // TurnOnForSeconds ,Turn on for several seconds
 func TurnOnForSeconds(pin rpio.Pin, lasts int) {
+	fmt.Println("Run cron job.")
 	if lasts == 0 {
 		return
 	}
@@ -110,7 +111,7 @@ func main() {
 
 	if *useCron {
 		c := cron.New()
-		cronStr := fmt.Sprintf("0 %d * * * *", *startHour)
+		cronStr := fmt.Sprintf("0 0 %d * * *", *startHour)
 		c.AddFunc(cronStr, func() { TurnOnForSeconds(pin, *timeLast) })
 		c.Start()
 		for {
